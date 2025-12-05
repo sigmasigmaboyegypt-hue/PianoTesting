@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Piano Sequencer</title>
+<style>
+  body { font-family: sans-serif; margin: 20px; }
+  .piano { display: flex; margin-bottom: 20px; }
+  .key { width: 60px; height: 150px; border: 1px solid black; text-align: center; line-height: 150px; cursor: pointer; user-select: none; background: white; margin-right: 2px; }
+  .key:active { background: #ddd; }
+
+  .timeline { position: relative; width: 100%; height: 200px; border: 1px solid #aaa; display: grid; grid-template-rows: repeat(7, 1fr); grid-gap: 2px; background: #f5f5f5; }
+  .timeline-row { position: relative; border-bottom: 1px solid #ccc; }
+  .note { position: absolute; height: 100%; background: #56a0d3; cursor: grab; }
+  .note.resizing { cursor: ew-resize; }
+  .controls { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>Mini Piano Sequencer</h2>
+
+<div class="piano" id="piano"></div>
+
+<div class="timeline" id="timeline"></div>
+
+<div class="controls">
+  <button id="playBtn">Play</button>
+</div>
+
+<script>
+const notes = ['Do','Re','Mi','Fa','Sol','La','Si'];
+const piano = document.getElementById('piano');
+const timeline = document.getElementById('timeline');
+
+const audioFiles = {
+  'Do': 'https://tonejs.github.io/audio/casio/Do.mp3',
+  'Re': 'https://tonejs.github.io/audio/casio/Re.mp3',
+  'Mi': 'https://tonejs.github.io/audio/casio/Mi.mp3',
+  'Fa': 'https://tonejs.github.io/audio/casio/Fa.mp3',
+  'Sol': 'https://tonejs.github.io/audio/casio/Sol.mp3',
+  'La': 'https://tonejs.github.io/audio/casio/La.mp3',
+  'Si': 'https://tonejs.github.io/audio/casio/Si.mp3'
+};
+
+// Create piano keys
+notes.forEach((note,i)=>{
+  const key = document.createElement('div');
+  key.classList.add('key');
+  key.textContent = note;
+  key.addEventListener('click', ()=>addNote(i,note));
+  piano.appendChild(key);
+});
+
+// Create timeline rows
+const timelineRows = [];
+notes.forEach(()=>{
+  const row = document.createElement('div');
+  row.classList.add('timeline-row');
+  timeline.appendChild(row);
+  timelineRows.push(row);
+});
+
+// Add note to timeline
+function addNote(rowIndex,note){
+  const noteDiv = document.createElement('div');
+  noteDiv.classList.add('note');
+  noteDiv.style.left = '0px';
+  noteDiv.style.width = '60px';
+  noteDiv.dataset.note = note;
+  timelineRows[rowIndex].appendChild(noteDiv);
+
+  makeDraggableResizable(noteDiv,rowIndex);
+}
+
+// Make note draggable and resizable
+function makeDraggableResizable(noteDiv,rowIndex){
+  let isDragging = false;
+  let isResizing = false;
+  let startX, startWidth;
+
+  noteDiv.addEventListener('mousedown',(e)=>{
+    const rect = noteDiv.getBoundingClientRect();
+    if(e.offsetX > rect.width - 10){ // resize zone
+      isResizing = true;
+      startWidth = rect.width;
+      startX = e.clientX;
+      noteDiv.classList.add('resizing');
+    } else {
+      isDragging = true;
+      startX = e.clientX - noteDiv.offsetLeft;
+    }
+  });
+
+  document.addEventListener('mousemove',(e)=>{
+    if(isDragging){
+      let newLeft = e.clientX - startX;
+      if(newLeft<0) newLeft=0;
+      noteDiv.style.left = newLeft+'px';
+    }
+    if(isResizing){
+      let newWidth = startWidth + (e.clientX - startX);
+      if(newWidth<20) newWidth=20;
+      noteDiv.style.width = newWidth+'px';
+    }
+  });
+
+  document.addEventListener('mouseup',()=>{
+    isDragging=false;
+    isResizing=false;
+    noteDiv.classList.remove('resizing');
+  });
+}
+
+// Play sequence
+document.getElementById('playBtn').addEventListener('click',()=>{
+  const timelineWidth = timeline.offsetWidth;
+  const speed = 200; // pixels per 0.2 sec
+  const audioElements = [];
+
+  timelineRows.forEach((row,rowIndex)=>{
+    Array.from(row.children).forEach(noteDiv=>{
+      const audio = new Audio(audioFiles[noteDiv.dataset.note]);
+      const startTime = parseInt(noteDiv.style.left)/speed;
+      const duration = parseInt(noteDiv.style.width)/speed;
+      setTimeout(()=>{ audio.play(); }, startTime*200);
+      setTimeout(()=>{ audio.pause(); audio.currentTime=0; }, (startTime+duration)*200);
+      audioElements.push(audio);
+    });
+  });
+});
+</script>
+
+</body>
+</html>
