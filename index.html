@@ -4,57 +4,58 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mini Piano Sequencer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
 <style>
-  body { font-family: sans-serif; margin: 20px; }
-  .piano { display: flex; margin-bottom: 20px; }
-  .key { width: 60px; height: 150px; border: 1px solid black; text-align: center; line-height: 150px; cursor: pointer; user-select: none; background: white; margin-right: 2px; }
-  .key:active { background: #ddd; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #fff; margin: 0; padding: 20px; }
+  h1 { text-align: center; }
+  
+  .piano { display: flex; justify-content: center; margin-bottom: 20px; }
+  .key { width: 60px; height: 180px; border: 2px solid #444; border-radius: 6px; text-align: center; line-height: 180px; cursor: pointer; user-select: none; margin: 0 2px; background: linear-gradient(#eee,#ccc); color: #000; transition: 0.1s; font-weight: bold;}
+  .key:active { background: #f5a623; }
 
-  .timeline { position: relative; width: 100%; height: 200px; border: 1px solid #aaa; display: grid; grid-template-rows: repeat(7, 1fr); grid-gap: 2px; background: #f5f5f5; }
-  .timeline-row { position: relative; border-bottom: 1px solid #ccc; }
-  .note { position: absolute; height: 100%; background: #56a0d3; cursor: grab; }
+  .timeline { position: relative; width: 100%; height: 280px; border: 2px solid #555; border-radius: 8px; display: grid; grid-template-rows: repeat(7, 1fr); grid-gap: 2px; background: #2a2a40; overflow-x: auto; }
+  .timeline-row { position: relative; border-bottom: 1px solid #444; }
+  .note { position: absolute; height: 100%; background: #56a0d3; cursor: grab; border-radius: 4px; }
   .note.resizing { cursor: ew-resize; }
-  .controls { margin-top: 10px; }
+  
+  .playhead { position: absolute; top: 0; width: 2px; height: 100%; background: #ff4c4c; z-index: 10; }
+
+  .controls { text-align: center; margin-top: 15px; }
+  button { padding: 10px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; background: #56a0d3; color: #fff; transition: 0.2s;}
+  button:hover { background: #3a78b1; }
 </style>
 </head>
 <body>
 
-<h2>Mini Piano Sequencer</h2>
+<h1>Mini Piano Sequencer</h1>
 
 <div class="piano" id="piano"></div>
 
 <div class="timeline" id="timeline"></div>
 
 <div class="controls">
-  <button id="playBtn">Play</button>
+  <button id="playBtn">Play Sequence</button>
 </div>
 
 <script>
 const notes = ['Do','Re','Mi','Fa','Sol','La','Si'];
+const keyMap = { 'd':0,'r':1,'m':2,'f':3,'s':4,'l':5,'i':6 };
 const piano = document.getElementById('piano');
 const timeline = document.getElementById('timeline');
-
-const audioFiles = {
-  'Do': 'https://tonejs.github.io/audio/casio/Do.mp3',
-  'Re': 'https://tonejs.github.io/audio/casio/Re.mp3',
-  'Mi': 'https://tonejs.github.io/audio/casio/Mi.mp3',
-  'Fa': 'https://tonejs.github.io/audio/casio/Fa.mp3',
-  'Sol': 'https://tonejs.github.io/audio/casio/Sol.mp3',
-  'La': 'https://tonejs.github.io/audio/casio/La.mp3',
-  'Si': 'https://tonejs.github.io/audio/casio/Si.mp3'
-};
+const timelineRows = [];
+const synth = new Tone.Synth().toDestination();
+const noteMap = ['C4','D4','E4','F4','G4','A4','B4'];
 
 // Create piano keys
 notes.forEach((note,i)=>{
   const key = document.createElement('div');
   key.classList.add('key');
   key.textContent = note;
-  key.addEventListener('click', ()=>addNote(i,note));
+  key.addEventListener('click', ()=>addNote(i));
   piano.appendChild(key);
 });
 
 // Create timeline rows
-const timelineRows = [];
 notes.forEach(()=>{
   const row = document.createElement('div');
   row.classList.add('timeline-row');
@@ -63,26 +64,30 @@ notes.forEach(()=>{
 });
 
 // Add note to timeline
-function addNote(rowIndex,note){
+function addNote(rowIndex){
   const noteDiv = document.createElement('div');
   noteDiv.classList.add('note');
   noteDiv.style.left = '0px';
   noteDiv.style.width = '60px';
-  noteDiv.dataset.note = note;
+  noteDiv.dataset.noteIndex = rowIndex;
   timelineRows[rowIndex].appendChild(noteDiv);
-
   makeDraggableResizable(noteDiv,rowIndex);
 }
 
-// Make note draggable and resizable
-function makeDraggableResizable(noteDiv,rowIndex){
-  let isDragging = false;
-  let isResizing = false;
-  let startX, startWidth;
+// Keyboard support
+document.addEventListener('keydown',(e)=>{
+  const key = e.key.toLowerCase();
+  if(keyMap[key]!==undefined){
+    addNote(keyMap[key]);
+  }
+});
 
+// Draggable & resizable notes
+function makeDraggableResizable(noteDiv,rowIndex){
+  let isDragging = false, isResizing = false, startX, startWidth;
   noteDiv.addEventListener('mousedown',(e)=>{
     const rect = noteDiv.getBoundingClientRect();
-    if(e.offsetX > rect.width - 10){ // resize zone
+    if(e.offsetX > rect.width - 10){ // resize
       isResizing = true;
       startWidth = rect.width;
       startX = e.clientX;
@@ -92,7 +97,6 @@ function makeDraggableResizable(noteDiv,rowIndex){
       startX = e.clientX - noteDiv.offsetLeft;
     }
   });
-
   document.addEventListener('mousemove',(e)=>{
     if(isDragging){
       let newLeft = e.clientX - startX;
@@ -105,7 +109,6 @@ function makeDraggableResizable(noteDiv,rowIndex){
       noteDiv.style.width = newWidth+'px';
     }
   });
-
   document.addEventListener('mouseup',()=>{
     isDragging=false;
     isResizing=false;
@@ -113,22 +116,42 @@ function makeDraggableResizable(noteDiv,rowIndex){
   });
 }
 
-// Play sequence
-document.getElementById('playBtn').addEventListener('click',()=>{
-  const timelineWidth = timeline.offsetWidth;
-  const speed = 200; // pixels per 0.2 sec
-  const audioElements = [];
-
+// Play sequence with playhead
+document.getElementById('playBtn').addEventListener('click', async ()=>{
+  await Tone.start();
+  const speed = 200; // pixels per 0.2s
+  const playhead = document.createElement('div');
+  playhead.classList.add('playhead');
+  timeline.appendChild(playhead);
+  
+  const timelineWidth = timeline.scrollWidth;
+  const duration = timelineWidth/speed*0.2; // approx duration
+  let start = Tone.now();
+  
   timelineRows.forEach((row,rowIndex)=>{
     Array.from(row.children).forEach(noteDiv=>{
-      const audio = new Audio(audioFiles[noteDiv.dataset.note]);
-      const startTime = parseInt(noteDiv.style.left)/speed;
-      const duration = parseInt(noteDiv.style.width)/speed;
-      setTimeout(()=>{ audio.play(); }, startTime*200);
-      setTimeout(()=>{ audio.pause(); audio.currentTime=0; }, (startTime+duration)*200);
-      audioElements.push(audio);
+      const left = parseInt(noteDiv.style.left);
+      const width = parseInt(noteDiv.style.width);
+      const noteStart = start + (left/speed)*0.2;
+      const noteDur = (width/speed)*0.2;
+      synth.triggerAttackRelease(noteMap[rowIndex], noteDur, noteStart);
     });
   });
+  
+  // Animate playhead
+  playhead.style.left='0px';
+  const startTime = performance.now();
+  function animate(){
+    const elapsed = (performance.now()-startTime)/1000;
+    const px = elapsed*speed/0.2;
+    if(px < timelineWidth){
+      playhead.style.left = px+'px';
+      requestAnimationFrame(animate);
+    } else {
+      timeline.removeChild(playhead);
+    }
+  }
+  animate();
 });
 </script>
 
