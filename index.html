@@ -3,157 +3,204 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harmony Studio | Upgraded Music Maker</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.35/Tone.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<title>Mini Music Editor | CapCut Style</title>
 <style>
-  body {
-    margin: 0; font-family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc;
-  }
-  header { padding:1rem 2rem; font-size:1.5rem; border-bottom:1px solid #334155;}
-  .app { display:flex; flex-direction:column; max-width:1200px; margin:0 auto;}
-  .main { display:flex; flex:1; gap:1rem; padding:1rem;}
-  .sidebar { width:280px; display:flex; flex-direction:column; gap:1rem;}
-  .card { background:#1e293b; padding:1rem; border-radius:10px;}
-  .card h3 { margin-bottom:0.5rem;}
-  .instrument-btn { padding:0.5rem; border:none; border-radius:6px; margin:2px; cursor:pointer;}
-  .instrument-btn.active { background:#6366f1; color:white;}
-  .volume-slider { width:100%; }
-  .piano-roll { flex:1; overflow:auto; border-radius:10px; background:#1e293b; padding:1rem;}
-  .timeline-grid { display:grid; grid-template-columns: repeat(32, 1fr); grid-auto-rows:24px; gap:2px;}
-  .timeline-cell { background:#334155; cursor:pointer; transition:0.1s; border-radius:4px;}
-  .timeline-cell.active { transform:scale(0.95); }
-  .timeline-cell.piano { background:rgba(59,130,246,0.7);}
-  .timeline-cell.lofi { background:rgba(139,92,246,0.7);}
-  .timeline-cell.synth { background:rgba(236,72,153,0.7);}
-  .timeline-cell.bass { background:rgba(16,185,129,0.7);}
-  .timeline-cell.drums { background:rgba(245,158,11,0.7);}
-  .timeline-cell.creative { background:rgba(6,182,212,0.7);}
-  .toolbar { margin-bottom:0.5rem; }
-  .btn { padding:0.5rem 1rem; margin:2px; border:none; border-radius:6px; cursor:pointer; }
-  .btn-primary { background:#6366f1; color:white; }
+body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #121212;
+    color: #fff;
+}
+
+header {
+    padding: 1rem;
+    background-color: #1f1f1f;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+}
+
+.timeline {
+    display: grid;
+    grid-template-rows: repeat(6, 50px);
+    grid-template-columns: repeat(16, 60px);
+    gap: 2px;
+    margin-bottom: 1rem;
+}
+
+.cell {
+    background-color: #2b2b2b;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.cell.active {
+    background-color: #1db954;
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+button {
+    padding: 0.5rem 1rem;
+    background-color: #2b2b2b;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: #3a3a3a;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+input[type="range"] {
+    width: 200px;
+}
+
+.timeline-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
 </style>
 </head>
 <body>
-<div class="app">
-  <header><i class="fas fa-music"></i> Harmony Studio</header>
-  <div class="main">
-    <div class="sidebar">
-      <div class="card">
-        <h3>Instruments</h3>
-        <button class="instrument-btn active" data-inst="piano">Piano</button>
-        <button class="instrument-btn" data-inst="lofi">Lo-Fi</button>
-        <button class="instrument-btn" data-inst="synth">Synth</button>
-        <button class="instrument-btn" data-inst="bass">Bass</button>
-        <button class="instrument-btn" data-inst="drums">Drums</button>
-        <button class="instrument-btn" data-inst="creative">Creative</button>
-      </div>
-      <div class="card">
-        <h3>Volume</h3>
-        <input type="range" class="volume-slider" data-inst="piano" min="0" max="1" step="0.01" value="0.8">
-        <input type="range" class="volume-slider" data-inst="lofi" min="0" max="1" step="0.01" value="0.7">
-        <input type="range" class="volume-slider" data-inst="synth" min="0" max="1" step="0.01" value="0.6">
-        <input type="range" class="volume-slider" data-inst="bass" min="0" max="1" step="0.01" value="0.75">
-        <input type="range" class="volume-slider" data-inst="drums" min="0" max="1" step="0.01" value="0.85">
-        <input type="range" class="volume-slider" data-inst="creative" min="0" max="1" step="0.01" value="0.65">
-      </div>
+<header>Mini Music Editor</header>
+<div class="container">
+
+    <div class="timeline-labels">
+        <span>00:00</span>
+        <span>00:16</span>
     </div>
-    <div class="piano-roll">
-      <div class="toolbar">
-        <button class="btn btn-primary" id="playBtn"><i class="fas fa-play"></i> Play</button>
-        <button class="btn" id="stopBtn"><i class="fas fa-stop"></i> Stop</button>
-      </div>
-      <div class="timeline-grid" id="timelineGrid"></div>
+    
+    <div class="timeline" id="timeline"></div>
+
+    <div class="controls">
+        <button id="playBtn">Play</button>
+        <button id="pauseBtn">Pause</button>
+        <button id="stopBtn">Stop</button>
+        <button id="loopBtn">Loop: Off</button>
     </div>
-  </div>
+
+    <div class="volume-control">
+        <span>Volume:</span>
+        <input type="range" id="volumeSlider" min="0" max="100" value="80">
+    </div>
+
 </div>
 
 <script>
-  // Tone.js instruments
-  const instruments = {
-    piano: new Tone.Sampler({
-      urls: {"C4":"C4.mp3"},
-      baseUrl: "https://tonejs.github.io/audio/salamander/"
-    }).toDestination(),
-    lofi: new Tone.Synth().toDestination(),
-    synth: new Tone.PolySynth().toDestination(),
-    bass: new Tone.MonoSynth({oscillator:{type:"square"}}).toDestination(),
-    drums: new Tone.MembraneSynth().toDestination(),
-    creative: new Tone.FMSynth().toDestination()
-  };
+const timeline = document.getElementById('timeline');
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const stopBtn = document.getElementById('stopBtn');
+const loopBtn = document.getElementById('loopBtn');
+const volumeSlider = document.getElementById('volumeSlider');
 
-  const volumes = { piano:0.8, lofi:0.7, synth:0.6, bass:0.75, drums:0.85, creative:0.65 };
-  let selectedInst = 'piano';
-  const grid = document.getElementById('timelineGrid');
-  const rows = 8, cols = 32;
-  const composition = {};
-  Object.keys(instruments).forEach(inst => { composition[inst] = Array(rows).fill().map(()=>Array(cols).fill(false)); });
+const rows = 6;
+const cols = 16;
+let isPlaying = false;
+let isLooping = false;
+let currentStep = 0;
+let playInterval;
+let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let volume = 0.8;
 
-  // Create grid
-  for(let r=0;r<rows;r++){
-    for(let c=0;c<cols;c++){
-      const cell = document.createElement('div');
-      cell.classList.add('timeline-cell');
-      cell.dataset.row=r; cell.dataset.col=c;
-      cell.addEventListener('click',()=>toggleCell(r,c,cell));
-      grid.appendChild(cell);
+// Create timeline cells
+const cells = [];
+for(let r=0; r<rows; r++){
+    cells[r] = [];
+    for(let c=0; c<cols; c++){
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        cell.addEventListener('click', () => {
+            cell.classList.toggle('active');
+            playNote(r);
+        });
+        timeline.appendChild(cell);
+        cells[r][c] = cell;
     }
-  }
+}
 
-  function toggleCell(row,col,cell){
-    composition[selectedInst][row][col] = !composition[selectedInst][row][col];
-    cell.classList.toggle('active');
-    if(composition[selectedInst][row][col]) playNote(selectedInst,row);
-  }
+// Play a note for a row
+function playNote(row){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 220 + row*40;
+    gain.gain.value = volume;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+}
 
-  function playNote(inst,row){
-    const noteMap = ['C4','D4','E4','F4','G4','A4','B4','C5'];
-    const note = noteMap[row%noteMap.length];
-    const now = Tone.now();
-    instruments[inst].volume.value = 20*Math.log10(volumes[inst]);
-    if(inst==='piano') instruments[inst].triggerAttackRelease(note,"8n",now);
-    else if(inst==='drums') instruments[inst].triggerAttackRelease("C2","8n",now);
-    else instruments[inst].triggerAttackRelease(note,"8n",now);
-  }
+// Play composition
+function playStep(){
+    for(let r=0; r<rows; r++){
+        if(cells[r][currentStep].classList.contains('active')){
+            playNote(r);
+        }
+    }
+    currentStep++;
+    if(currentStep >= cols){
+        if(isLooping){
+            currentStep = 0;
+        } else {
+            stopPlayback();
+        }
+    }
+}
 
-  // Instrument buttons
-  document.querySelectorAll('.instrument-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      document.querySelectorAll('.instrument-btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active'); selectedInst = btn.dataset.inst;
-    });
-  });
-
-  // Volume sliders
-  document.querySelectorAll('.volume-slider').forEach(sl=>{
-    sl.addEventListener('input',()=>{ volumes[sl.dataset.inst]=parseFloat(sl.value); });
-  });
-
-  // Play sequence
-  let currentStep = 0, isPlaying = false, interval;
-  function playSequence(){
+function startPlayback(){
     if(isPlaying) return;
     isPlaying = true;
-    Tone.start();
-    interval = setInterval(()=>{
-      Object.keys(instruments).forEach(inst=>{
-        for(let r=0;r<rows;r++){
-          if(composition[inst][r][currentStep]) playNote(inst,r);
-        }
-      });
-      currentStep = (currentStep+1)%cols;
-    },300);
-  }
+    playInterval = setInterval(playStep, 300);
+}
 
-  function stopSequence(){
-    clearInterval(interval);
-    isPlaying=false;
-    currentStep=0;
-  }
+function pausePlayback(){
+    clearInterval(playInterval);
+    isPlaying = false;
+}
 
-  document.getElementById('playBtn').addEventListener('click',playSequence);
-  document.getElementById('stopBtn').addEventListener('click',stopSequence);
+function stopPlayback(){
+    clearInterval(playInterval);
+    isPlaying = false;
+    currentStep = 0;
+}
 
+playBtn.addEventListener('click', startPlayback);
+pauseBtn.addEventListener('click', pausePlayback);
+stopBtn.addEventListener('click', stopPlayback);
+loopBtn.addEventListener('click', () => {
+    isLooping = !isLooping;
+    loopBtn.textContent = `Loop: ${isLooping ? 'On':'Off'}`;
+});
+
+volumeSlider.addEventListener('input', () => {
+    volume = volumeSlider.value / 100;
+});
 </script>
 </body>
 </html>
