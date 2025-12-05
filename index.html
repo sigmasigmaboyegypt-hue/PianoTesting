@@ -3,203 +3,149 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Music Editor | CapCut Style</title>
+<title>Mini FL Studio Web Editor</title>
 <style>
-body {
-    margin: 0;
-    font-family: 'Arial', sans-serif;
-    background-color: #121212;
-    color: #fff;
-}
+  /* Reset */
+  * { margin:0; padding:0; box-sizing:border-box; font-family:sans-serif; }
+  body { display:flex; height:100vh; background:#1e1e2f; color:white; }
 
-header {
-    padding: 1rem;
-    background-color: #1f1f1f;
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: bold;
-}
+  /* Sidebar for instruments */
+  #sidebar {
+    width:200px; background:#2b2b44; padding:10px; display:flex; flex-direction:column; gap:15px;
+  }
+  #sidebar h2 { text-align:center; margin-bottom:10px; }
+  .instrument { padding:8px; background:#3a3a5c; border-radius:6px; cursor:pointer; text-align:center; transition:0.2s; }
+  .instrument.active { background:#56ccf2; color:#000; font-weight:bold; }
 
-.container {
-    display: flex;
-    flex-direction: column;
-    padding: 1rem;
-}
+  /* Global volume */
+  #volumeControl { margin-top:auto; }
+  input[type=range] { width:100%; }
 
-.timeline {
-    display: grid;
-    grid-template-rows: repeat(6, 50px);
-    grid-template-columns: repeat(16, 60px);
-    gap: 2px;
-    margin-bottom: 1rem;
-}
+  /* Main editor */
+  #editor { flex:1; padding:10px; display:flex; flex-direction:column; }
+  #toolbar { display:flex; gap:10px; margin-bottom:10px; }
+  .btn { padding:8px 12px; background:#3a3a5c; border:none; border-radius:5px; cursor:pointer; transition:0.2s; }
+  .btn:hover { background:#56ccf2; color:#000; }
 
-.cell {
-    background-color: #2b2b2b;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.1s;
-}
+  #timeline { display:grid; grid-template-columns:repeat(32, 40px); gap:2px; overflow-x:auto; }
+  .row { display:flex; margin-bottom:4px; }
+  .cell { width:40px; height:30px; border-radius:4px; border:1px solid #555; cursor:pointer; transition:0.1s; }
+  .cell.active { background:#56ccf2; }
 
-.cell.active {
-    background-color: #1db954;
-}
-
-.controls {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-button {
-    padding: 0.5rem 1rem;
-    background-color: #2b2b2b;
-    border: none;
-    color: #fff;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-button:hover {
-    background-color: #3a3a3a;
-}
-
-.volume-control {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-input[type="range"] {
-    width: 200px;
-}
-
-.timeline-labels {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-    font-size: 0.9rem;
-}
+  /* Instrument label */
+  .label { width:80px; text-align:right; padding-right:10px; line-height:30px; }
 </style>
 </head>
 <body>
-<header>Mini Music Editor</header>
-<div class="container">
 
-    <div class="timeline-labels">
-        <span>00:00</span>
-        <span>00:16</span>
-    </div>
-    
-    <div class="timeline" id="timeline"></div>
+<!-- Sidebar -->
+<div id="sidebar">
+  <h2>Instruments</h2>
+  <div class="instrument active" data-sound="kick">Kick</div>
+  <div class="instrument" data-sound="snare">Snare</div>
+  <div class="instrument" data-sound="hihat">Hi-Hat</div>
+  <div class="instrument" data-sound="piano">Piano</div>
+  <div class="instrument" data-sound="lofi">Lofi</div>
 
-    <div class="controls">
-        <button id="playBtn">Play</button>
-        <button id="pauseBtn">Pause</button>
-        <button id="stopBtn">Stop</button>
-        <button id="loopBtn">Loop: Off</button>
-    </div>
+  <div id="volumeControl">
+    <label>Volume</label>
+    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
+  </div>
+</div>
 
-    <div class="volume-control">
-        <span>Volume:</span>
-        <input type="range" id="volumeSlider" min="0" max="100" value="80">
-    </div>
-
+<!-- Main editor -->
+<div id="editor">
+  <div id="toolbar">
+    <button class="btn" id="playBtn">Play</button>
+    <button class="btn" id="stopBtn">Stop</button>
+    <button class="btn" id="clearBtn">Clear</button>
+  </div>
+  
+  <div id="timeline"></div>
 </div>
 
 <script>
-const timeline = document.getElementById('timeline');
-const playBtn = document.getElementById('playBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const stopBtn = document.getElementById('stopBtn');
-const loopBtn = document.getElementById('loopBtn');
-const volumeSlider = document.getElementById('volumeSlider');
-
-const rows = 6;
-const cols = 16;
-let isPlaying = false;
-let isLooping = false;
-let currentStep = 0;
-let playInterval;
-let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-let volume = 0.8;
-
-// Create timeline cells
-const cells = [];
-for(let r=0; r<rows; r++){
-    cells[r] = [];
-    for(let c=0; c<cols; c++){
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.dataset.row = r;
-        cell.dataset.col = c;
-        cell.addEventListener('click', () => {
-            cell.classList.toggle('active');
-            playNote(r);
-        });
-        timeline.appendChild(cell);
-        cells[r][c] = cell;
-    }
-}
-
-// Play a note for a row
-function playNote(row){
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 220 + row*40;
-    gain.gain.value = volume;
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.3);
-}
-
-// Play composition
-function playStep(){
-    for(let r=0; r<rows; r++){
-        if(cells[r][currentStep].classList.contains('active')){
-            playNote(r);
-        }
-    }
-    currentStep++;
-    if(currentStep >= cols){
-        if(isLooping){
-            currentStep = 0;
-        } else {
-            stopPlayback();
-        }
-    }
-}
-
-function startPlayback(){
-    if(isPlaying) return;
-    isPlaying = true;
-    playInterval = setInterval(playStep, 300);
-}
-
-function pausePlayback(){
-    clearInterval(playInterval);
-    isPlaying = false;
-}
-
-function stopPlayback(){
-    clearInterval(playInterval);
-    isPlaying = false;
-    currentStep = 0;
-}
-
-playBtn.addEventListener('click', startPlayback);
-pauseBtn.addEventListener('click', pausePlayback);
-stopBtn.addEventListener('click', stopPlayback);
-loopBtn.addEventListener('click', () => {
-    isLooping = !isLooping;
-    loopBtn.textContent = `Loop: ${isLooping ? 'On':'Off'}`;
+const instruments = document.querySelectorAll('.instrument');
+let currentInstrument = 'kick';
+instruments.forEach(inst => {
+  inst.addEventListener('click', () => {
+    instruments.forEach(i=>i.classList.remove('active'));
+    inst.classList.add('active');
+    currentInstrument = inst.dataset.sound;
+  });
 });
 
-volumeSlider.addEventListener('input', () => {
-    volume = volumeSlider.value / 100;
+// Setup timeline: 5 instruments, 32 columns
+const timeline = document.getElementById('timeline');
+const rows = ['kick','snare','hihat','piano','lofi'];
+const cells = [];
+
+rows.forEach((inst,index)=>{
+  const rowDiv = document.createElement('div');
+  rowDiv.classList.add('row');
+  rowDiv.style.marginBottom = '4px';
+
+  const label = document.createElement('div');
+  label.classList.add('label');
+  label.textContent = inst.toUpperCase();
+  rowDiv.appendChild(label);
+
+  cells[index] = [];
+
+  for(let i=0;i<32;i++){
+    const cell = document.createElement('div');
+    cell.classList.add('cell');
+    cell.addEventListener('click',()=>{
+      cell.classList.toggle('active');
+    });
+    rowDiv.appendChild(cell);
+    cells[index].push(cell);
+  }
+
+  timeline.appendChild(rowDiv);
+});
+
+// Load simple sounds
+const sounds = {
+  kick: new Audio('https://freesound.org/data/previews/20/20003_27743-lq.mp3'),
+  snare: new Audio('https://freesound.org/data/previews/41/41572_512123-lq.mp3'),
+  hihat: new Audio('https://freesound.org/data/previews/21/21525_39009-lq.mp3'),
+  piano: new Audio('https://freesound.org/data/previews/29/29899_512123-lq.mp3'),
+  lofi: new Audio('https://freesound.org/data/previews/348/348274_512123-lq.mp3')
+};
+
+const volumeSlider = document.getElementById('volume');
+volumeSlider.addEventListener('input',()=>{
+  Object.values(sounds).forEach(s=>s.volume = volumeSlider.value);
+});
+
+// Play sequence
+let playing = false;
+let step = 0;
+let interval;
+document.getElementById('playBtn').addEventListener('click',()=>{
+  if(playing) return;
+  playing = true;
+  step = 0;
+  interval = setInterval(()=>{
+    for(let i=0;i<rows.length;i++){
+      if(cells[i][step].classList.contains('active')){
+        sounds[rows[i]].currentTime = 0;
+        sounds[rows[i]].play();
+      }
+    }
+    step++;
+    if(step>=32) step=0;
+  },250); // 250ms per beat
+});
+
+document.getElementById('stopBtn').addEventListener('click',()=>{
+  clearInterval(interval);
+  playing=false;
+});
+
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  cells.forEach(row => row.forEach(cell => cell.classList.remove('active')));
 });
 </script>
 </body>
