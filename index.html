@@ -3,39 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini Piano Sequencer</title>
+<title>Ultimate Piano Sequencer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
 <style>
   body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #fff; margin: 0; padding: 20px; }
-  h1 { text-align: center; }
+  h1 { text-align: center; margin-bottom: 10px; }
   
+  .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; }
+  select, button { padding: 8px 15px; font-size: 16px; border-radius: 6px; border: none; cursor: pointer; }
+  select { background: #2a2a40; color: #fff; }
+  button { background: #56a0d3; color: #fff; transition: 0.2s; }
+  button:hover { background: #3a78b1; }
+
   .piano { display: flex; justify-content: center; margin-bottom: 20px; }
-  .key { width: 60px; height: 180px; border: 2px solid #444; border-radius: 6px; text-align: center; line-height: 180px; cursor: pointer; user-select: none; margin: 0 2px; background: linear-gradient(#eee,#ccc); color: #000; transition: 0.1s; font-weight: bold;}
+  .key { width: 60px; height: 180px; border: 2px solid #444; border-radius: 6px; text-align: center; line-height: 180px; cursor: pointer; user-select: none; margin: 0 2px; background: linear-gradient(#eee,#ccc); color: #000; font-weight: bold; transition: 0.1s;}
   .key:active { background: #f5a623; }
 
   .timeline { position: relative; width: 100%; height: 280px; border: 2px solid #555; border-radius: 8px; display: grid; grid-template-rows: repeat(7, 1fr); grid-gap: 2px; background: #2a2a40; overflow-x: auto; }
   .timeline-row { position: relative; border-bottom: 1px solid #444; }
   .note { position: absolute; height: 100%; background: #56a0d3; cursor: grab; border-radius: 4px; }
   .note.resizing { cursor: ew-resize; }
-  
-  .playhead { position: absolute; top: 0; width: 2px; height: 100%; background: #ff4c4c; z-index: 10; }
 
-  .controls { text-align: center; margin-top: 15px; }
-  button { padding: 10px 20px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; background: #56a0d3; color: #fff; transition: 0.2s;}
-  button:hover { background: #3a78b1; }
+  .playhead { position: absolute; top: 0; width: 2px; height: 100%; background: #ff4c4c; z-index: 10; }
 </style>
 </head>
 <body>
 
-<h1>Mini Piano Sequencer</h1>
-
-<div class="piano" id="piano"></div>
-
-<div class="timeline" id="timeline"></div>
+<h1>Ultimate Piano Sequencer</h1>
 
 <div class="controls">
+  <select id="styleSelector">
+    <option value="classic">Classic Piano</option>
+    <option value="lofi">Lofi Piano</option>
+    <option value="electric">Electric Piano</option>
+    <option value="synth">Synth Piano</option>
+    <option value="jazz">Jazz Piano</option>
+  </select>
   <button id="playBtn">Play Sequence</button>
 </div>
+
+<div class="piano" id="piano"></div>
+<div class="timeline" id="timeline"></div>
 
 <script>
 const notes = ['Do','Re','Mi','Fa','Sol','La','Si'];
@@ -43,10 +51,19 @@ const keyMap = { 'd':0,'r':1,'m':2,'f':3,'s':4,'l':5,'i':6 };
 const piano = document.getElementById('piano');
 const timeline = document.getElementById('timeline');
 const timelineRows = [];
-const synth = new Tone.Synth().toDestination();
 const noteMap = ['C4','D4','E4','F4','G4','A4','B4'];
 
-// Create piano keys
+// Tone.js synths for styles
+let currentSynth = new Tone.Synth().toDestination();
+const styleMap = {
+  'classic': new Tone.Synth().toDestination(),
+  'lofi': new Tone.FMSynth({harmonicity: 0.5, modulationIndex: 12, oscillator: {type: 'triangle'}}).toDestination(),
+  'electric': new Tone.MembraneSynth().toDestination(),
+  'synth': new Tone.AMSynth().toDestination(),
+  'jazz': new Tone.MetalSynth({frequency: 200, envelope: {attack:0.01, decay:0.3, release:0.4}, harmonicity:5, modulationIndex:30}).toDestination()
+};
+
+// Piano keys
 notes.forEach((note,i)=>{
   const key = document.createElement('div');
   key.classList.add('key');
@@ -55,7 +72,7 @@ notes.forEach((note,i)=>{
   piano.appendChild(key);
 });
 
-// Create timeline rows
+// Timeline rows
 notes.forEach(()=>{
   const row = document.createElement('div');
   row.classList.add('timeline-row');
@@ -63,7 +80,7 @@ notes.forEach(()=>{
   timelineRows.push(row);
 });
 
-// Add note to timeline
+// Add note
 function addNote(rowIndex){
   const noteDiv = document.createElement('div');
   noteDiv.classList.add('note');
@@ -82,74 +99,57 @@ document.addEventListener('keydown',(e)=>{
   }
 });
 
-// Draggable & resizable notes
+// Draggable & resizable
 function makeDraggableResizable(noteDiv,rowIndex){
-  let isDragging = false, isResizing = false, startX, startWidth;
+  let isDragging=false, isResizing=false, startX, startWidth;
   noteDiv.addEventListener('mousedown',(e)=>{
     const rect = noteDiv.getBoundingClientRect();
-    if(e.offsetX > rect.width - 10){ // resize
-      isResizing = true;
-      startWidth = rect.width;
-      startX = e.clientX;
-      noteDiv.classList.add('resizing');
-    } else {
-      isDragging = true;
-      startX = e.clientX - noteDiv.offsetLeft;
-    }
+    if(e.offsetX > rect.width - 10){
+      isResizing=true; startWidth=rect.width; startX=e.clientX; noteDiv.classList.add('resizing');
+    } else { isDragging=true; startX=e.clientX-noteDiv.offsetLeft; }
   });
   document.addEventListener('mousemove',(e)=>{
-    if(isDragging){
-      let newLeft = e.clientX - startX;
-      if(newLeft<0) newLeft=0;
-      noteDiv.style.left = newLeft+'px';
-    }
-    if(isResizing){
-      let newWidth = startWidth + (e.clientX - startX);
-      if(newWidth<20) newWidth=20;
-      noteDiv.style.width = newWidth+'px';
-    }
+    if(isDragging){ let newLeft=e.clientX-startX; if(newLeft<0) newLeft=0; noteDiv.style.left=newLeft+'px'; }
+    if(isResizing){ let newWidth=startWidth+(e.clientX-startX); if(newWidth<20) newWidth=20; noteDiv.style.width=newWidth+'px'; }
   });
   document.addEventListener('mouseup',()=>{
-    isDragging=false;
-    isResizing=false;
-    noteDiv.classList.remove('resizing');
+    isDragging=false; isResizing=false; noteDiv.classList.remove('resizing');
   });
 }
 
-// Play sequence with playhead
+// Style selector
+document.getElementById('styleSelector').addEventListener('change',(e)=>{
+  currentSynth = styleMap[e.target.value];
+});
+
+// Play sequence
 document.getElementById('playBtn').addEventListener('click', async ()=>{
   await Tone.start();
-  const speed = 200; // pixels per 0.2s
+  const speed=200;
   const playhead = document.createElement('div');
   playhead.classList.add('playhead');
   timeline.appendChild(playhead);
-  
-  const timelineWidth = timeline.scrollWidth;
-  const duration = timelineWidth/speed*0.2; // approx duration
-  let start = Tone.now();
-  
+  const timelineWidth=timeline.scrollWidth;
+  const startTime = Tone.now();
+
   timelineRows.forEach((row,rowIndex)=>{
     Array.from(row.children).forEach(noteDiv=>{
-      const left = parseInt(noteDiv.style.left);
-      const width = parseInt(noteDiv.style.width);
-      const noteStart = start + (left/speed)*0.2;
+      const left=parseInt(noteDiv.style.left);
+      const width=parseInt(noteDiv.style.width);
+      const noteStart = startTime + (left/speed)*0.2;
       const noteDur = (width/speed)*0.2;
-      synth.triggerAttackRelease(noteMap[rowIndex], noteDur, noteStart);
+      currentSynth.triggerAttackRelease(noteMap[rowIndex], noteDur, noteStart);
     });
   });
-  
+
   // Animate playhead
   playhead.style.left='0px';
-  const startTime = performance.now();
+  const startPerf = performance.now();
   function animate(){
-    const elapsed = (performance.now()-startTime)/1000;
-    const px = elapsed*speed/0.2;
-    if(px < timelineWidth){
-      playhead.style.left = px+'px';
-      requestAnimationFrame(animate);
-    } else {
-      timeline.removeChild(playhead);
-    }
+    const elapsed=(performance.now()-startPerf)/1000;
+    const px=elapsed*speed/0.2;
+    if(px<timelineWidth){ playhead.style.left=px+'px'; requestAnimationFrame(animate); }
+    else { timeline.removeChild(playhead); }
   }
   animate();
 });
